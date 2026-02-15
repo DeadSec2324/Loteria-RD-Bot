@@ -89,14 +89,24 @@ def scrapear_conectate():
         return []
 
 def cargar_datos():
+    # Intenta cargar el archivo existente
     if os.path.exists(FILE_NAME):
-        return pd.read_csv(FILE_NAME)
-    else:
-        print("📂 Creando archivo de historial nuevo (dejando hueco para datos reales)...")
-        df = generar_datos_prueba(90)
-        df.to_csv(FILE_NAME, index=False)
-        return df
-
+        try:
+            df = pd.read_csv(FILE_NAME)
+            # Verificamos que tenga columnas correctas, si no, lo reseteamos
+            if 'Loteria' not in df.columns:
+                print("⚠️ Archivo antiguo detectado. Regenerando estructura...")
+                raise ValueError("Formato incorrecto")
+            return df
+        except Exception as e:
+            print(f"⚠️ Error leyendo archivo: {e}")
+    
+    # Si no existe o falló, CREAMOS UNO SOLO UNA VEZ
+    print("📂 Creando archivo de historial persistente...")
+    df = generar_datos_prueba(90)
+    df.to_csv(FILE_NAME, index=False)
+    return df
+    
 def actualizar_datos():
     df = cargar_datos()
     nuevos_resultados = scrapear_conectate()
@@ -123,3 +133,4 @@ def actualizar_datos():
             print("💤 Los datos encontrados YA existen en el historial.")
             
     return []
+
