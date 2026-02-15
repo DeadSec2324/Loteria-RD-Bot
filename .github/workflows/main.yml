@@ -1,20 +1,16 @@
-name: Robot Lotería Auto
+name: Bot Lotería Automático
 
 on:
   schedule:
-    # Se ejecuta a las 1:00, 17:00 y 21:00 UTC (Ajusta esto según necesidad)
-    # UTC es 4 horas más que RD. Ej: 17:00 UTC = 1:00 PM RD
-    - cron: '0 17 * * *' 
-    - cron: '0 21 * * *'
-    - cron: '0 1 * * *'
-  workflow_dispatch: # Permite darle al botón "Run" manualmente para probar
-
-permissions:
-  contents: write
+    - cron: '0 * * * *' # Se ejecuta cada hora en punto (minuto 0)
+  workflow_dispatch: # Permite ejecutarlo manualmente con un botón
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Permiso para guardar el CSV actualizado
+
     steps:
       - name: Descargar código
         uses: actions/checkout@v3
@@ -25,19 +21,14 @@ jobs:
           python-version: '3.9'
 
       - name: Instalar librerías
-        run: pip install -r requirements.txt
-
-      - name: Ejecutar Robot
-        # Aquí GitHub usa los Secretos que configuraste antes
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
-        run: python bot_runner.py
-        
-      - name: Guardar Historial Actualizado
         run: |
-          git config --global user.name 'Robot Loteria'
-          git config --global user.email 'bot@noreply.github.com'
-          git add historial_loterias.csv
-          git commit -m "Nuevos resultados guardados" || echo "No hay cambios nuevos"
-          git push
+          pip install pandas requests beautifulsoup4 lxml
+
+      - name: Ejecutar Bot
+        run: python bot_definitivo.py
+
+      - name: Guardar cambios (CSV)
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "🤖 Auto-actualización de resultados"
+          file_pattern: 'historial_loterias.csv'
