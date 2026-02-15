@@ -1,38 +1,43 @@
-name: Bot Lotería Conectate
+name: Robot Lotería Auto
 
 on:
   schedule:
-    # Ejecutar a las 2:00 PM y 9:00 PM UTC (Ajusta a hora RD)
-    - cron: '0 18 * * *' 
-    - cron: '0 2 * * *'
-  workflow_dispatch:
+    # Se ejecuta a las 1:00, 17:00 y 21:00 UTC (Ajusta esto según necesidad)
+    # UTC es 4 horas más que RD. Ej: 17:00 UTC = 1:00 PM RD
+    - cron: '0 17 * * *' 
+    - cron: '0 21 * * *'
+    - cron: '0 1 * * *'
+  workflow_dispatch: # Permite darle al botón "Run" manualmente para probar
+
+permissions:
+  contents: write
 
 jobs:
-  run-scraper:
+  run-bot:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Python
+      - name: Descargar código
+        uses: actions/checkout@v3
+
+      - name: Instalar Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-          
-      - name: Install dependencies
+
+      - name: Instalar librerías
         run: pip install -r requirements.txt
-        
-      - name: Run Bot
+
+      - name: Ejecutar Robot
+        # Aquí GitHub usa los Secretos que configuraste antes
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python bot_runner.py
         
-      - name: Guardar Datos CSV
+      - name: Guardar Historial Actualizado
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git config --global user.name 'Robot Loteria'
+          git config --global user.email 'bot@noreply.github.com'
           git add historial_loterias.csv
-          git commit -m "Nuevos resultados sorteo" || echo "No hay cambios"
+          git commit -m "Nuevos resultados guardados" || echo "No hay cambios nuevos"
           git push
