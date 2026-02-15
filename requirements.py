@@ -1,5 +1,6 @@
+streamlit
 pandas
 requests
 beautifulsoup4
-streamlit
 matplotlib
+altair<5
