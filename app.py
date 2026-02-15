@@ -1,53 +1,83 @@
 import streamlit as st
 import pandas as pd
-from data_manager import cargar_datos, LOTERIAS_OBJETIVO
+import matplotlib.pyplot as plt
+import os
 
-st.set_page_config(page_title="Analizador de Loterías", layout="wide", page_icon="🎱")
+# Configuración de la página
+st.set_page_config(page_title="Lotería Dominicana", page_icon="🎱")
 
+# Título
 st.title("🎱 Centro de Estadísticas de Lotería")
-st.markdown("Análisis de tendencias, números calientes y fríos.")
 
-# Cargar datos
-df = cargar_datos()
+# 1. CARGAR DATOS CON SEGURIDAD
+archivo = 'historial_loterias.csv'
 
-# Sidebar (Menú lateral)
-st.sidebar.header("Filtros")
-loteria_selec = st.sidebar.selectbox("Selecciona la Lotería:", LOTERIAS_OBJETIVO)
+if not os.path.exists(archivo):
+    st.error(f"⚠️ No se encuentra el archivo '{archivo}'. Asegúrate de subirlo a GitHub.")
+    st.stop()
 
-# Filtrar por la lotería seleccionada
-df_loto = df[df['Loteria'] == loteria_selec]
+try:
+    df = pd.read_csv(archivo)
+except Exception as e:
+    st.error(f"❌ Error leyendo el archivo: {e}")
+    st.stop()
 
-if not df_loto.empty:
-    # --- LOGICA DE CALIENTES Y FRIOS ---
-    # Unimos las 3 columnas de premios en una sola lista para contar
-    todos_numeros = pd.concat([df_loto['1er'], df_loto['2do'], df_loto['3er']])
-    conteo = todos_numeros.value_counts().sort_values(ascending=False)
-    
-    # KPIs Principales
-    ultimo_sorteo = df_loto.iloc[0]
-    st.info(f"📅 **Último Sorteo ({ultimo_sorteo['Fecha']}):** {ultimo_sorteo['1er']} - {ultimo_sorteo['2do']} - {ultimo_sorteo['3er']}")
+if df.empty:
+    st.warning("⚠️ El archivo de datos está vacío. Ejecuta el generador primero.")
+    st.stop()
 
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("🔥 Los Más Calientes (Top 5)")
-        st.write("Estos números son los que más han salido en los últimos 3 meses.")
-        # Mostramos los 5 primeros del conteo
-        top_hot = conteo.head(5)
-        st.bar_chart(top_hot, color="#FF4B4B") # Rojo
-        
-    with col2:
-        st.subheader("🧊 Los Más Fríos (Top 5)")
-        st.write("Estos números casi no salen. ¿Toca que salgan pronto?")
-        # Mostramos los 5 últimos del conteo (que tengan al menos 1 salida, o los menos frecuentes)
-        top_cold = conteo.tail(5).sort_values()
-        st.bar_chart(top_cold, color="#1E90FF") # Azul
+# 2. MENÚ INTELIGENTE (La clave del arreglo)
+# Buscamos los nombres ÚNICOS que realmente existen en el archivo.
+# Así no hay error de "nombre incorrecto".
+lista_loterias = sorted(df['Loteria'].unique())
 
-    st.divider()
-    
-    # Análisis Detallado
-    st.subheader(f"📜 Historial Reciente: {loteria_selec}")
-    st.dataframe(df_loto[['Fecha', '1er', '2do', '3er']].head(10), use_container_width=True)
+loteria_seleccionada = st.selectbox("Selecciona tu Sorteo:", lista_loterias)
 
+# 3. FILTRAR DATOS
+# Buscamos en el Excel solo los datos de la lotería que elegiste
+datos_loteria = df[df['Loteria'] == loteria_seleccionada].copy()
+
+# Ordenar por fecha (lo más nuevo arriba)
+datos_loteria['Fecha'] = pd.to_datetime(datos_loteria['Fecha'])
+datos_loteria = datos_loteria.sort_values(by='Fecha', ascending=False)
+
+# 4. MOSTRAR RESULTADOS
+if len(datos_loteria) < 1:
+    st.warning(f"No hay datos para {loteria_seleccionada}.")
 else:
-    st.warning(f"Todavía no hay suficientes datos registrados para {loteria_selec}.")
+    # Último resultado
+    ultimo = datos_loteria.iloc[0]
+    st.success(f"📅 **Último Sorteo ({ultimo['Fecha'].strftime('%d-%m-%Y')}):**")
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("1er Premio", ultimo['1er'])
+    col2.metric("2do Premio", ultimo['2do'])
+    col3.metric("3er Premio", ultimo['3er'])
+
+    st.markdown("---")
+
+    # --- ANÁLISIS DE CALIENTES ---
+    st.subheader("🔥 Números Calientes (Más frecuentes)")
+    
+    if len(datos_loteria) > 5:
+        # Juntamos todos los premios en una sola lista
+        todos_numeros = pd.concat([datos_loteria['1er'], datos_loteria['2do'], datos_loteria['3er']])
+        conteo = todos_numeros.value_counts().head(10)
+
+        # Gráfico de Barras
+        fig, ax = plt.subplots(figsize=(10, 5))
+        conteo.plot(kind='bar', color='#ff4b4b', ax=ax)
+        ax.set_title(f"Números que más salen en {loteria_seleccionada}")
+        ax.set_xlabel("Número")
+        ax.set_ylabel("Veces que ha salido")
+        st.pyplot(fig)
+    else:
+        st.info("Necesitamos más historial para mostrar la gráfica de calientes.")
+
+    # Tabla de Historial Reciente
+    st.markdown("---")
+    st.subheader("📜 Historial Reciente")
+    # Formatear la fecha para que se vea bonita en la tabla
+    tabla_mostrar = datos_loteria.copy()
+    tabla_mostrar['Fecha'] = tabla_mostrar['Fecha'].dt.strftime('%d-%m-%Y')
+    st.dataframe(tabla_mostrar.head(10))
