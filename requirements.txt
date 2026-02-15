@@ -1,5 +1,5 @@
 streamlit
 pandas
+matplotlib
 requests
 beautifulsoup4
-# Altair es una dependencia interna de Streamlit, mejor dejar que él decida la versión
